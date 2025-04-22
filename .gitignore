@@ -1,3 +1,5 @@
 # Virtual environment
+__pycache__/
 venv/
 .env
+self_note.txt

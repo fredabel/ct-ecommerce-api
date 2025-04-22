@@ -2,10 +2,13 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, Table, Column, String, Integer, Numeric, Date, DateTime, UniqueConstraint, select
+from sqlalchemy import ForeignKey, Table, Column, String, Boolean, Integer, Numeric, Date, DateTime, UniqueConstraint, select
 from marshmallow import ValidationError
 from typing import List
 from datetime import datetime, timedelta
+from flask_migrate import Migrate
+
+
 # 
 from dotenv import load_dotenv
 import os
@@ -14,6 +17,7 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
+
 
 # MySQL database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
@@ -29,6 +33,7 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 ma = Marshmallow(app)
+migrate = Migrate(app, db)
 
 # Order Product Association Table
 order_product = Table(
@@ -48,6 +53,9 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(50))
     address: Mapped[str] = mapped_column(String(200))
     email: Mapped[str] = mapped_column(String(200),unique=True)
+    
+    password: Mapped[str] = mapped_column(String(200))  # New field for storing hashed passwords
+    login: Mapped[bool] = mapped_column(Boolean, default=False)  # New field for login username
     
     # One-to-Many relationship with Order
     orders: Mapped[List["Order"]] = relationship("Order", back_populates="user")
