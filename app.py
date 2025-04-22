@@ -50,11 +50,11 @@ class User(Base):
     __tablename__ = "users"
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
     address: Mapped[str] = mapped_column(String(200))
-    email: Mapped[str] = mapped_column(String(200),unique=True)
-    
-    password: Mapped[str] = mapped_column(String(200))  # New field for storing hashed passwords
+    email: Mapped[str] = mapped_column(String(200),unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(50),unique=True, nullable=False)  # New field for  usernames
+    password: Mapped[str] = mapped_column(String(200),nullable=False)  # New field for hashed passwords
     login: Mapped[bool] = mapped_column(Boolean, default=False)  # New field for login username
     
     # One-to-Many relationship with Order
