@@ -7,7 +7,8 @@ from marshmallow import ValidationError
 from typing import List
 from datetime import datetime, timedelta
 from flask_migrate import Migrate
-
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
 # 
 from dotenv import load_dotenv
@@ -34,6 +35,10 @@ db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 ma = Marshmallow(app)
 migrate = Migrate(app, db)
+bcrypt = Bcrypt(app)
+
+# Initialize JWT
+jwt = JWTManager(app)
 
 # Order Product Association Table
 order_product = Table(
@@ -85,6 +90,7 @@ class Product(Base):
 class UserSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = User
+        exclude = ("password",)  # Exclude the password field
 class OrderSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Order
@@ -104,18 +110,42 @@ products_schema = ProductSchema(many=True)
 
 
 #========== Routes =================
-
+@app.route('/login', methods=['POST'])
+def login():
+    
+    email = request.json.get('email', None)
+    password = request.json.get('password', None)
+    
+    # Fetch the user from the database
+    user = db.session.execute(select(User).where(User.email == email)).scalar_one_or_none()
+     # Validate the email and password
+    if not user or not bcrypt.check_password_hash(user.password, password):
+        return jsonify({"message": "Invalid email or password" }), 401
+    # Generate JWT token
+    access_token = create_access_token(identity=str(user.id))
+    return jsonify({"access_token": access_token}), 200
 #Users
 @app.route('/users',methods=['POST'])
 def create_user():
     try:
         user_data = user_schema.load(request.json)
         # Check if the email already exists in the database
-        user_exist = db.session.execute(select(User).where(User.email == user_data['email'])).scalar_one_or_none()
-        if user_exist:
+        email_exist = db.session.execute(select(User).where(User.email == user_data['email'])).scalar_one_or_none()
+        username_exist = db.session.execute(select(User).where(User.username == user_data['username'])).scalar_one_or_none()
+
+        if email_exist:
             return jsonify({"message": "A user with this email already exists"}), 400
-        
-        new_user = User(name=user_data['name'], email=user_data['email'], address=user_data['address'])
+        if username_exist:
+            return jsonify({"message": "A user with this username already exists"}), 400
+        # Hash the password
+        hashed_password = bcrypt.generate_password_hash(user_data['password']).decode('utf-8')
+        new_user = User(
+            name=user_data['name'], 
+            email=user_data['email'], 
+            address=user_data['address'],
+            username=user_data['username'],
+            password=hashed_password
+        )
         db.session.add(new_user)
         db.session.commit()
         return user_schema.jsonify(new_user), 201
@@ -123,9 +153,8 @@ def create_user():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
-    
-
 @app.route('/users', methods=['GET'])
+@jwt_required()
 def get_users():
     query = select(User)
     users = db.session.execute(query).scalars().all()
@@ -157,9 +186,11 @@ def update_user(id):
     user.name = user_data['name']
     user.email = user_data['email']
     user.address = user_data['address']
-    
+    # user.password = hashed_password = bcrypt.generate_password_hash(user_data['password']).decode('utf-8')
+    # user.username = user_data['username']
     db.session.commit()
     return user_schema.jsonify(user),200
+
 @app.route('/users/<int:id>',methods=['DELETE'])
 def delete_user(id):
     user = db.session.get(User, id)
