@@ -5,14 +5,21 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, Table, Column, String, Integer, Numeric, Date, DateTime, UniqueConstraint, select
 from marshmallow import ValidationError
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
+# 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # MySQL database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:root@localhost/ecommerce_api'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY') 
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(seconds=120)
 
 # Creating our Base Model
 class Base(DeclarativeBase):
